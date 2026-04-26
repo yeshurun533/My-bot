@@ -231,7 +231,9 @@ function showKeyScreen(){
   document.getElementById('key-screen').classList.remove('hidden');
 }
 function hideKeyScreen(){
-  document.getElementById('key-screen').classList.add('hidden');
+  var ks = document.getElementById('key-screen');
+  ks.classList.add('hidden');
+  ks.style.display = 'none';
 }
 
 document.getElementById('key-btn').addEventListener('click', function(){
@@ -256,9 +258,11 @@ document.getElementById('key-input').addEventListener('keydown', function(e){
 });
 
 document.getElementById('change-key-btn').addEventListener('click', function(){
-  document.getElementById('key-input').value='';
-  showKeyScreen();
   closeDrawer();
+  document.getElementById('key-input').value='';
+  var ks = document.getElementById('key-screen');
+  ks.classList.remove('hidden');
+  ks.style.display = 'flex';
 });
 
 // ── Drawer ────────────────────────────────────────
@@ -353,18 +357,19 @@ async function send(){
   busy=true; showTyping();
   try{
     const geminiMsgs=a.history.map(function(m){ return {role:m.role==='assistant'?'model':'user',parts:[{text:m.content}]}; });
-    const res=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key='+getKey(),{
+    const res=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key='+getKey(),{
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({system_instruction:{parts:[{text:SYSTEM_PROMPT}]},contents:geminiMsgs,generationConfig:{maxOutputTokens:1000}})
     });
     const d=await res.json();
+    if(d.error) throw new Error('Gemini: ' + d.error.message);
     const reply=(d.candidates&&d.candidates[0]&&d.candidates[0].content&&d.candidates[0].content.parts&&d.candidates[0].content.parts[0])?d.candidates[0].content.parts[0].text:'';
-    if(!reply) throw new Error('empty');
+    if(!reply) throw new Error('תגובה ריקה מ-Gemini. d=' + JSON.stringify(d).substring(0,100));
     a.history.push({role:'assistant',content:reply}); removeTyping(); addMsg('assistant',reply); saveRooms();
   }catch(e){
     removeTyping();
-    const err='אופס... בדוק את המפתח שלך או את החיבור לאינטרנט 😅';
+    const err='שגיאה: '+e.message+' | מפתח: '+(getKey()?getKey().substring(0,8)+'...':'ריק');
     a.history.push({role:'assistant',content:err}); addMsg('assistant',err); saveRooms();
   }finally{
     busy=false; snd.disabled=!inp.value.trim();
